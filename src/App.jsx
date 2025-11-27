@@ -1,14 +1,144 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 
-export default function App() {
+export default function ChatInterface() {
   const [messages, setMessages] = useState([
     { id: 1, role: 'assistant', content: '¡Hola! ¿En qué puedo ayudarte hoy?' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [threadId, setThreadId] = useState(null);
   const messagesEndRef = useRef(null);
+
+  // Función para convertir markdown a JSX
+  const parseMarkdown = (text) => {
+    // Dividir por líneas para procesar listas
+    const lines = text.split('\n');
+    const elements = [];
+    let listItems = [];
+    let inList = false;
+
+    lines.forEach((line, lineIndex) => {
+      // Detectar items de lista
+      const listMatch = line.match(/^[\s]*[-*]\s+(.+)$/);
+      
+      if (listMatch) {
+        inList = true;
+        listItems.push(
+          <li key={`list-${lineIndex}`} className="ml-4">
+            {parseInlineMarkdown(listMatch[1])}
+          </li>
+        );
+      } else {
+        // Si había una lista, cerrarla
+        if (inList && listItems.length > 0) {
+          elements.push(
+            <ul key={`ul-${lineIndex}`} className="list-disc my-2">
+              {listItems}
+            </ul>
+          );
+          listItems = [];
+          inList = false;
+        }
+        
+        // Procesar línea normal
+        if (line.trim()) {
+          elements.push(
+            <span key={`line-${lineIndex}`}>
+              {parseInlineMarkdown(line)}
+              {lineIndex < lines.length - 1 && <br />}
+            </span>
+          );
+        } else if (lineIndex < lines.length - 1) {
+          elements.push(<br key={`br-${lineIndex}`} />);
+        }
+      }
+    });
+
+    // Cerrar lista si termina con ella
+    if (inList && listItems.length > 0) {
+      elements.push(
+        <ul key="ul-final" className="list-disc my-2">
+          {listItems}
+        </ul>
+      );
+    }
+
+    return elements;
+  };
+
+  // Función para procesar markdown inline (negrita, cursiva, código, enlaces)
+  const parseInlineMarkdown = (text) => {
+    const elements = [];
+    let remaining = text;
+    let key = 0;
+
+    // Regex para diferentes formatos
+    const patterns = [
+      { regex: /\*\*(.+?)\*\*/g, tag: 'strong' },           // **negrita**
+      { regex: /\*(.+?)\*/g, tag: 'em' },                   // *cursiva*
+      { regex: /_(.+?)_/g, tag: 'em' },                     // _cursiva_
+      { regex: /`(.+?)`/g, tag: 'code' },                   // `código`
+      { regex: /\[(.+?)\]\((.+?)\)/g, tag: 'link' }        // [texto](url)
+    ];
+
+    while (remaining.length > 0) {
+      let earliestMatch = null;
+      let earliestPattern = null;
+
+      // Buscar el match más cercano
+      patterns.forEach(pattern => {
+        pattern.regex.lastIndex = 0;
+        const match = pattern.regex.exec(remaining);
+        if (match && (!earliestMatch || match.index < earliestMatch.index)) {
+          earliestMatch = match;
+          earliestPattern = pattern;
+        }
+      });
+
+      if (!earliestMatch) {
+        // No hay más matches, agregar el resto del texto
+        elements.push(remaining);
+        break;
+      }
+
+      // Agregar texto antes del match
+      if (earliestMatch.index > 0) {
+        elements.push(remaining.substring(0, earliestMatch.index));
+      }
+
+      // Agregar elemento formateado
+      if (earliestPattern.tag === 'link') {
+        elements.push(
+          <a 
+            key={key++} 
+            href={earliestMatch[2]} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:underline"
+          >
+            {earliestMatch[1]}
+          </a>
+        );
+      } else if (earliestPattern.tag === 'code') {
+        elements.push(
+          <code 
+            key={key++} 
+            className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono"
+          >
+            {earliestMatch[1]}
+          </code>
+        );
+      } else {
+        const Tag = earliestPattern.tag;
+        elements.push(<Tag key={key++}>{earliestMatch[1]}</Tag>);
+      }
+
+      // Actualizar texto restante
+      remaining = remaining.substring(earliestMatch.index + earliestMatch[0].length);
+    }
+
+    return elements;
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,8 +163,8 @@ export default function App() {
     setIsTyping(true);
 
     try {
-      // Llamada a tu backend API
-      const API_URL = 'https://chatsomm-back.onrender.com';
+      // Llamada a tu backend API usando variable de entorno
+      const API_URL = window.ENV?.VITE_API_URL || 'https://chatsomm-back.onrender.com';
       
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
@@ -107,7 +237,9 @@ export default function App() {
                     : 'bg-white text-gray-800 border border-gray-200'
                 }`}
               >
-                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+                <p className="whitespace-pre-wrap break-words">
+                  {parseMarkdown(message.content)}
+                </p>
               </div>
             </div>
           ))}
