@@ -1,13 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 
-export default function ChatInterface() {
+export default function App() {
   const [messages, setMessages] = useState([
     { id: 1, role: 'assistant', content: '¡Hola! ¿En qué puedo ayudarte hoy?' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [threadId, setThreadId] = useState(null);
   const messagesEndRef = useRef(null);
+  
+  // Definir API_URL desde variable de entorno
+  const API_URL = import.meta.env.VITE_API_URL;
 
   // Función para convertir markdown a JSX
   const parseMarkdown = (text) => {
@@ -39,7 +43,7 @@ export default function ChatInterface() {
         listType = 'ul';
         listItems.push(
           <li key={`list-${lineIndex}`} className="ml-4">
-            {parseInlineMarkdown(bulletMatch[1])}
+            {parseInlineMarkdown(line, bulletMatch[1])}
           </li>
         );
       } else if (numberedMatch) {
@@ -57,7 +61,7 @@ export default function ChatInterface() {
         listType = 'ol';
         listItems.push(
           <li key={`list-${lineIndex}`} className="ml-4">
-            {parseInlineMarkdown(numberedMatch[1])}
+            {parseInlineMarkdown(line, numberedMatch[1])}
           </li>
         );
       } else {
@@ -85,7 +89,7 @@ export default function ChatInterface() {
         if (line.trim()) {
           elements.push(
             <span key={`line-${lineIndex}`}>
-              {parseInlineMarkdown(line)}
+              {parseInlineMarkdown(line, line)}
               {lineIndex < lines.length - 1 && <br />}
             </span>
           );
@@ -116,7 +120,7 @@ export default function ChatInterface() {
   };
 
   // Función para procesar markdown inline (negrita, cursiva, código, enlaces)
-  const parseInlineMarkdown = (text) => {
+  const parseInlineMarkdown = (fullLine, text) => {
     const elements = [];
     let remaining = text;
     let key = 0;
