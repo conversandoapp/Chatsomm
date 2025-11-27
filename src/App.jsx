@@ -16,28 +16,69 @@ export default function ChatInterface() {
     const elements = [];
     let listItems = [];
     let inList = false;
+    let listType = null; // 'ul' o 'ol'
 
     lines.forEach((line, lineIndex) => {
-      // Detectar items de lista
-      const listMatch = line.match(/^[\s]*[-*]\s+(.+)$/);
+      // Detectar items de lista con viñetas (-, *)
+      const bulletMatch = line.match(/^[\s]*[-*]\s+(.+)$/);
+      // Detectar items de lista numerada (1., 2., etc.)
+      const numberedMatch = line.match(/^[\s]*\d+\.\s+(.+)$/);
       
-      if (listMatch) {
+      if (bulletMatch) {
+        // Si cambiamos de tipo de lista, cerrar la anterior
+        if (inList && listType === 'ol') {
+          elements.push(
+            <ol key={`ol-${lineIndex}-close`} className="list-decimal my-2 ml-6">
+              {listItems}
+            </ol>
+          );
+          listItems = [];
+        }
+        
         inList = true;
+        listType = 'ul';
         listItems.push(
           <li key={`list-${lineIndex}`} className="ml-4">
-            {parseInlineMarkdown(listMatch[1])}
+            {parseInlineMarkdown(bulletMatch[1])}
+          </li>
+        );
+      } else if (numberedMatch) {
+        // Si cambiamos de tipo de lista, cerrar la anterior
+        if (inList && listType === 'ul') {
+          elements.push(
+            <ul key={`ul-${lineIndex}-close`} className="list-disc my-2 ml-6">
+              {listItems}
+            </ul>
+          );
+          listItems = [];
+        }
+        
+        inList = true;
+        listType = 'ol';
+        listItems.push(
+          <li key={`list-${lineIndex}`} className="ml-4">
+            {parseInlineMarkdown(numberedMatch[1])}
           </li>
         );
       } else {
         // Si había una lista, cerrarla
         if (inList && listItems.length > 0) {
-          elements.push(
-            <ul key={`ul-${lineIndex}`} className="list-disc my-2">
-              {listItems}
-            </ul>
-          );
+          if (listType === 'ol') {
+            elements.push(
+              <ol key={`ol-${lineIndex}`} className="list-decimal my-2 ml-6">
+                {listItems}
+              </ol>
+            );
+          } else {
+            elements.push(
+              <ul key={`ul-${lineIndex}`} className="list-disc my-2 ml-6">
+                {listItems}
+              </ul>
+            );
+          }
           listItems = [];
           inList = false;
+          listType = null;
         }
         
         // Procesar línea normal
@@ -56,11 +97,19 @@ export default function ChatInterface() {
 
     // Cerrar lista si termina con ella
     if (inList && listItems.length > 0) {
-      elements.push(
-        <ul key="ul-final" className="list-disc my-2">
-          {listItems}
-        </ul>
-      );
+      if (listType === 'ol') {
+        elements.push(
+          <ol key="ol-final" className="list-decimal my-2 ml-6">
+            {listItems}
+          </ol>
+        );
+      } else {
+        elements.push(
+          <ul key="ul-final" className="list-disc my-2 ml-6">
+            {listItems}
+          </ul>
+        );
+      }
     }
 
     return elements;
@@ -163,8 +212,10 @@ export default function ChatInterface() {
     setIsTyping(true);
 
     try {
-      // Llamada a tu backend API usando variable de entorno
-      const API_URL = window.ENV?.VITE_API_URL || 'https://chatsomm-back.onrender.com';
+      // Validar que la URL del backend esté configurada
+      if (!API_URL) {
+        throw new Error('Backend URL not configured');
+      }
       
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
