@@ -1,12 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send } from 'lucide-react';
 
-export default function ChatInterface() {
+export default function App() {
   const [messages, setMessages] = useState([
     { id: 1, role: 'assistant', content: '¡Hola! ¿En qué puedo ayudarte hoy?' }
   ]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [threadId, setThreadId] = useState(null);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -33,7 +34,7 @@ export default function ChatInterface() {
 
     try {
       // Llamada a tu backend API
-      const API_URL = import.meta.env.VITE_API_URL || 'https://tu-backend.onrender.com';
+      const API_URL = 'https://chatsomm-back.onrender.com';
       
       const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
