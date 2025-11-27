@@ -33,15 +33,16 @@ export default function ChatInterface() {
 
     try {
       // Llamada a tu backend API
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-const response = await fetch(`${API_URL}/api/chat`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://tu-backend.onrender.com';
+      
+      const response = await fetch(`${API_URL}/api/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           message: currentInput,
-          conversationHistory: messages
+          threadId: threadId
         })
       });
 
@@ -50,6 +51,11 @@ const response = await fetch(`${API_URL}/api/chat`, {
       }
 
       const data = await response.json();
+      
+      // Guardar el threadId para mantener la conversación
+      if (data.threadId && !threadId) {
+        setThreadId(data.threadId);
+      }
       
       const botMessage = {
         id: Date.now() + 1,
